@@ -90,9 +90,9 @@ function CreateClub() {
       navigate('/clubs'); 
 
     } catch (err) {
-      console.error("Create club failed:", err.response.data);
+      console.error("Create club failed:", err.response?.data);
       // Show specific error from backend (e.g., "You already own a club.")
-      setError(err.response.data.message || "Failed to create club.");
+      setError(err.response?.data?.message || "Failed to create club.");
     } finally {
       setLoading(false);
     }
@@ -108,6 +108,7 @@ function CreateClub() {
           flexDirection: 'column',
           alignItems: 'center',
           padding: 4,
+          bgcolor: 'background.paper', // Solid white background
         }}
       >
         <Typography component="h1" variant="h4">

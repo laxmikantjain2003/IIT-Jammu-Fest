@@ -36,6 +36,9 @@ function EditClub() {
     const fetchClub = async () => {
       try {
         setLoading(true);
+        // We need the token to fetch, in case this page is restricted
+        // Although, for an edit page, the primary auth is on the 'PUT' request.
+        // Let's assume the GET is public for now.
         const response = await axios.get(`http://localhost:5000/api/clubs/${id}`);
         const club = response.data;
         
@@ -61,7 +64,7 @@ function EditClub() {
   const handleChange = (e) => {
     setFormData({
       ...formData,
-      [e.g.target.name]: e.g.target.value,
+      [e.target.name]: e.target.value,
     });
   };
 
@@ -87,16 +90,22 @@ function EditClub() {
     
     // 2. Append the new file *only if* one was selected
     if (logoFile) {
-      data.append('logo', logoFile);
+      data.append('logo', logoFile); // 'logo' is the field name backend expects
     }
     
     try {
       // 3. Get token and config
       const token = localStorage.getItem('token');
+      if (!token) {
+        setError("Authorization failed. Please log in again.");
+        setLoading(false);
+        return;
+      }
+      
       const config = {
         headers: {
           'Authorization': `Bearer ${token}`,
-          // 'Content-Type' is set automatically by the browser
+          // 'Content-Type' is set automatically by the browser for FormData
         },
       };
 
@@ -109,8 +118,8 @@ function EditClub() {
       navigate(`/club/${id}`); 
 
     } catch (err) {
-      console.error("Update club failed:", err.response.data);
-      setError(err.response.data.message || "Failed to update club. Check authorization.");
+      console.error("Update club failed:", err.response?.data);
+      setError(err.response?.data?.message || "Failed to update club. Check authorization.");
     } finally {
       setLoading(false);
     }
@@ -139,6 +148,7 @@ function EditClub() {
           flexDirection: 'column',
           alignItems: 'center',
           padding: 4,
+          bgcolor: 'background.paper',
         }}
       >
         <Typography component="h1" variant="h4">
@@ -180,7 +190,14 @@ function EditClub() {
                       component="img"
                       image={currentLogo || "https://res.cloudinary.com/demo/image/upload/v1600000000/placeholder.png"} 
                       alt="Current Logo" 
-                      sx={{ width: 80, height: 80, objectFit: 'contain', mr: 2, borderRadius: '50%' }} 
+                      sx={{ 
+                        width: 80, 
+                        height: 80, 
+                        objectFit: 'contain', 
+                        mr: 2, 
+                        borderRadius: '50%',
+                        bgcolor: '#f9f9f9'
+                      }} 
                     />
                     <Box>
                       <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>

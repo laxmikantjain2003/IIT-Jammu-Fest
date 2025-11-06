@@ -12,9 +12,10 @@ router.get('/', eventController.getAllEvents);
 
 /**
  * @route POST /api/events
- * @desc Create a new Event
+ * @desc Create a new Event (and send notifications)
  * @access Private (Coordinator/Admin only)
  */
+// The route is just '/' because the base '/api/events' is defined in server.js
 router.post('/', protect, isCoordinator, eventController.createEvent);
 
 /**
@@ -33,9 +34,25 @@ router.get('/:eventId/export', protect, isCoordinator, eventController.exportReg
 
 /**
  * @route POST /api/events/:eventId/register
- * @desc Register a Student for an Event
+ * @desc Register a Student or Coordinator for an Event
  * @access Private (Logged-in users only)
  */
 router.post('/:eventId/register', protect, eventController.registerForEvent);
+
+/**
+ * --- NEW ROUTE ---
+ * @route GET /api/events/:id
+ * @desc Get details for one specific Event (Public)
+ * @access Public
+ */
+router.get('/:id', eventController.getEventById);
+
+/**
+ * --- NEW ROUTE ---
+ * @route PUT /api/events/:id
+ * @desc Update an event's details
+ * @access Private (Coordinator/Admin only)
+ */
+router.put('/:id', protect, isCoordinator, eventController.updateEvent);
 
 module.exports = router;

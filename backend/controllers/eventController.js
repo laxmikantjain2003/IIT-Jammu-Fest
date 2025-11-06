@@ -1,58 +1,41 @@
 const Event = require('../models/Event');
-const User = require('../models/user'); // FIX: Standardizing to capital 'User'
+const User = require('../models/user');
 const Registration = require('../models/Registration');
 const papaparse = require('papaparse'); 
-const sendEmail = require('../utils/sendEmail'); // ADDED: For event notifications
-const { Op } = require('../database'); // ADDED: For database operations
+const sendEmail = require('../utils/sendEmail'); 
+const { Op } = require('../database'); 
 
 /**
  * @description Create a new Event.
- * Also sends an email notification to ALL verified users.
- * (This function is unchanged from our last update)
+ * (Unchanged - Includes email notification)
  */
 exports.createEvent = async (req, res) => {
   try {
     const { title, description, venue, eventDate, clubName } = req.body;
     const coordinatorId = req.user.id;
     
-    // 1. Create the Event record
     const newEvent = await Event.create({
-      title,
-      description,
-      venue,
-      eventDate,
-      clubName,
-      coordinatorId
+      title, description, venue, eventDate, clubName, coordinatorId
     });
 
     // --- Event Notification Feature ---
-    // 2. Fetch all verified user emails
     const users = await User.findAll({
         where: { isVerified: true }, 
         attributes: ['email'],
     });
-
-    // 3. Prepare the email list
     const recipientEmails = users.map(user => user.email).join(', ');
     
-    // 4. Create the notification message
     const notificationMessage = `
       Hello IIT Jammu Community,
-
-      A new event has been officially posted:
-
+      A new event has been officially posted:
       Title: ${title}
       Club: ${clubName}
       Venue: ${venue}
       Date & Time: ${new Date(eventDate).toLocaleString()}
-
-      Description: ${description}
-
       Visit the portal to register now!
       http://localhost:3000/events
     `;
 
-    // 5. Send the email (runs in background)
     sendEmail({
         email: recipientEmails,
         subject: `[New Event Alert] ${clubName}: ${title}`,
@@ -62,7 +45,6 @@ exports.createEvent = async (req, res) => {
     });
     // --- End Notification Feature ---
 
-    // 6. Send success response
     res.status(201).json({
       message: "Event created successfully and notification sent!",
       event: newEvent
@@ -76,14 +58,14 @@ exports.createEvent = async (req, res) => {
 
 /**
  * @description Get all upcoming Events (Public).
- * (This function is unchanged)
+ * (Unchanged)
  */
 exports.getAllEvents = async (req, res) => {
   try {
     const events = await Event.findAll({
       order: [['eventDate', 'ASC']],
       include: {
-        model: User, // To show who created it
+        model: User, 
         attributes: ['name', 'email']
       }
     });
@@ -94,75 +76,86 @@ exports.getAllEvents = async (req, res) => {
   }
 };
 
+// --- NEW FUNCTION: Get a Single Event by ID ---
+/**
+ * @description Get details for one specific Event (Public).
+ * @route GET /api/events/:id
+ */
+exports.getEventById = async (req, res) => {
+  try {
+    const event = await Event.findByPk(req.params.id, {
+      include: {
+        model: User, // Include coordinator's details
+        attributes: ['name', 'email']
+      }
+    });
+
+    if (!event) {
+      return res.status(404).json({ message: "Event not found." });
+    }
+    
+    res.status(200).json(event);
+
+  } catch (error) {
+    console.error("Get event by ID error:", error);
+    res.status(500).json({ message: "Server error while fetching event." });
+  }
+};
+
 /**
  * @description Register a Student OR Coordinator for an Event.
- * (UPDATED with coordinator self-registration check AND confirmation email)
+ * (Unchanged - Includes self-registration block & confirmation email)
  */
 exports.registerForEvent = async (req, res) => {
   try {
     const { eventId } = req.params;
-    const userId = req.user.id; // From 'protect' middleware
+    const userId = req.user.id; 
 
-    // 1. Check if event exists
     const event = await Event.findByPk(eventId);
     if (!event) {
       return res.status(404).json({ message: "Event not found." });
     }
 
-    // --- NEW SECURITY CHECK ---
-    // 2. Check if the user is the coordinator of this specific event
+    // Check coordinator self-registration
     if (event.coordinatorId === userId) {
       return res.status(403).json({ 
         message: "You cannot register for an event that you are coordinating." 
       });
     }
-    // --- END NEW CHECK ---
 
-    // 3. Check if user is already registered
     const existingRegistration = await Registration.findOne({
-      where: {
-        userId: userId,
-        eventId: eventId
-      }
+      where: { userId: userId, eventId: eventId }
     });
     if (existingRegistration) {
       return res.status(400).json({ message: "You are already registered for this event." });
     }
 
-    // 4. Create the registration
-    await Registration.create({
-      userId,
-      eventId
-    });
+    await Registration.create({ userId, eventId });
 
-    // --- NEW CONFIRMATION EMAIL FEATURE ---
-    // 5. Get the user's details for the email
-    const user = await User.findByPk(userId, { attributes: ['name', 'email'] });
+    // Send success response to frontend IMMEDIATELY.
+    res.status(201).json({ message: "Registered for event successfully! A confirmation email is being sent." });
 
-    const confirmationMessage = `
-      Hello ${user.name},
-
-      You have successfully registered for the following event:
-
-      Event: ${event.title}
-      Club: ${event.clubName}
-      Date: ${new Date(event.eventDate).toLocaleString()}
-      Venue: ${event.venue}
-
-      We look forward to seeing you there!
-      
-      (This is a confirmation email, no reply is needed.)
-    `;
-
-    // 6. Send the confirmation email
-    await sendEmail({
-        email: user.email,
-        subject: `Registration Confirmed: ${event.title}`,
-        message: confirmationMessage,
-    });
-    // --- END CONFIRMATION EMAIL ---
-
-    res.status(201).json({ message: "Registered for event successfully! A confirmation email has been sent." });
+    // Send confirmation email in the background
+    try {
+        const user = await User.findByPk(userId, { attributes: ['name', 'email'] });
+        const confirmationMessage = `
+          Hello ${user.name},
+          You have successfully registered for the following event:
+          Event: ${event.title}
+          Date: ${new Date(event.eventDate).toLocaleString()}
+          Venue: ${event.venue}
+          We look forward to seeing you there!
+        `;
+        
+        // We use 'sendEmail' but DO NOT 'await' it, so it doesn't block
+        sendEmail({
+            email: user.email,
+            subject: `Registration Confirmed: ${event.title}`,
+            message: confirmationMessage,
+        }).catch(err => console.error("Failed to send confirmation email:", err));
+    } catch (emailError) {
+        console.error("Failed to send confirmation email:", emailError);
+    }
 
   } catch (error) {
     console.error("Event registration error:", error);
@@ -170,9 +163,71 @@ exports.registerForEvent = async (req, res) => {
   }
 };
 
+// --- NEW FUNCTION: Update an Event ---
+/**
+ * @description Update an event's details (Coordinator only).
+ * @route PUT /api/events/:id
+ */
+exports.updateEvent = async (req, res) => {
+  try {
+    const { id } = req.params; // Get ID from URL
+    const coordinatorId = req.user.id;
+    const { title, description, venue, eventDate, clubName } = req.body;
+
+    // 1. Find the event
+    const event = await Event.findByPk(id);
+    if (!event) {
+      return res.status(404).json({ message: "Event not found." });
+    }
+
+    // 2. SECURITY CHECK: Ensure the logged-in user is the owner
+    if (event.coordinatorId !== coordinatorId && req.user.role !== 'admin') {
+      return res.status(403).json({ message: "You are not authorized to update this event." });
+    }
+
+    // 3. Update the fields
+    event.title = title;
+    event.description = description;
+    event.venue = venue;
+    event.eventDate = eventDate;
+    event.clubName = clubName;
+
+    // 4. Save changes to the database
+    await event.save();
+
+    // 5. (Optional but good) Notify registered users of the change
+    const registeredUsers = await event.getRegisteredStudents({ attributes: ['email'] });
+    if (registeredUsers.length > 0) {
+      const recipientEmails = registeredUsers.map(user => user.email).join(', ');
+      const message = `
+        Hello,
+        Please note that details for an event you are registered for have changed:
+
+        Event: ${title}
+        New Date: ${new Date(eventDate).toLocaleString()}
+        New Venue: ${venue}
+
+        Please check the portal for full details.
+      `;
+      sendEmail({
+        email: recipientEmails,
+        subject: `[EVENT UPDATE] ${title}`,
+        message: message
+      }).catch(err => console.error("Failed to send event update email:", err));
+    }
+
+    res.status(200).json({ message: "Event updated successfully!", event: event });
+
+  } catch (error) {
+    console.error("Update event error:", error);
+    res.status(500).json({ message: "Server error while updating event." });
+  }
+};
+
+
 /**
  * @description Get all events created by the logged-in coordinator.
- * (This function is unchanged)
+ * (Unchanged)
  */
 exports.getMyEvents = async (req, res) => {
   try {
@@ -182,15 +237,13 @@ exports.getMyEvents = async (req, res) => {
       order: [['eventDate', 'ASC']],
       include: {
         model: User,
-        as: 'RegisteredStudents', // Use the alias from Registration.js
+        as: 'RegisteredStudents', 
         attributes: ['name', 'email'],
-        through: {
-          attributes: [] // Don't include the join table data
-        }
+        through: { attributes: [] }
       }
     });
     res.status(200).json(events);
-  } catch (error) {
+  } catch (error) {
     console.error("Get my events error:", error);
     res.status(500).json({ message: "Server error while fetching events." });
   }
@@ -198,19 +251,14 @@ exports.getMyEvents = async (req, res) => {
 
 /**
  * @description Export a CSV file of registered students for an event.
- * (This function is unchanged)
+ * (Unchanged)
  */
 exports.exportRegistrations = async (req, res) => {
   try {
     const { eventId } = req.params;
     const coordinatorId = req.user.id;
-
-    // 1. Find the event and ensure the coordinator owns it
     const event = await Event.findOne({
-      where: { 
-        id: eventId,
-        coordinatorId: coordinatorId
-      },
+      where: { id: eventId, coordinatorId: coordinatorId },
       include: {
         model: User,
         as: 'RegisteredStudents',
@@ -218,25 +266,17 @@ exports.exportRegistrations = async (req, res) => {
         through: { attributes: [] }
       }
     });
-
     if (!event) {
       return res.status(404).json({ message: "Event not found or you are not authorized." });
     }
-
-    // 2. Prepare the data for CSV
     const students = event.RegisteredStudents.map(student => ({
       Name: student.name,
       Email: student.email
     }));
-
-    // 3. Convert JSON to CSV string
     const csv = papaparse.unparse(students);
-
-    // 4. Send the CSV data as a downloadable file
     res.header('Content-Type', 'text/csv');
     res.attachment(`${event.title}-registrations.csv`);
     res.status(200).send(csv);
-
   } catch (error) {
     console.error("Export error:", error);
     res.status(500).json({ message: "Server error during export." });

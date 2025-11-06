@@ -1,4 +1,10 @@
+/* frontend/src/index.css
+  This file contains global styles for the application.
+*/
+
 body {
+  /* Default background for internal pages (Dashboard, Profile, etc.) */
+  background-color: #f4f6f8; 
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
@@ -7,17 +13,21 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* --- Background Image Class --- */
+
+/* This class will be dynamically applied to the <body> tag by App.js */
 body.auth-background {
-  /* 1. Background image (public folder se)
-     2. Dark overlay (rgba(0, 0, 0, 0.5)) taaki text saaf dikhe */
+  /* 1. A dark overlay (rgba(0, 0, 0, 0.5)) is applied
+    2. The background image is loaded from the src/assets folder
+  */
   background-image: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url('./assets/iit-jammu-bg.jpg');
   
   background-size: cover;
   background-position: center;
-  background-attachment: fixed; /* Image ko scroll nahi hone dega */
+  background-attachment: fixed; /* Keeps the background stationary on scroll */
   background-repeat: no-repeat;
   
-  /* Pages ke beech smooth transition */
+  /* Smooth transition for when the background is added/removed */
   transition: background-image 0.3s ease-in-out;
 }
 

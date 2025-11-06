@@ -261,7 +261,7 @@ function Register() {
                         type="password" 
                         value={formData.password} 
                         onChange={handleChange}
-                        disabled={stage < 3} // Enabled only after verification
+                        // disabled={stage < 3} // Enabled only after verification
                     />
                 </Grid>
 
@@ -272,7 +272,7 @@ function Register() {
                         name="mobile" 
                         value={formData.mobile} 
                         onChange={handleChange} 
-                        disabled={stage < 3}
+                        // disabled={stage < 3}
                     />
                 </Grid>
 

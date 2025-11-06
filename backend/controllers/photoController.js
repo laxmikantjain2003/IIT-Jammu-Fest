@@ -4,7 +4,7 @@ const cloudinary = require('../config/cloudinary');
 const { dataUri } = require('../middleware/dataUri'); // Utility for image formatting
 
 // --- Helper Functions for Image Upload ---
-// We define these helpers again here, scoped to this controller.
+// These helpers are co-located here for managing gallery photos.
 
 /**
  * @description Uploads a file to Cloudinary.
@@ -54,11 +54,12 @@ exports.uploadPhoto = async (req, res) => {
             return res.status(403).json({ message: "You are not authorized to upload photos to this club." });
         }
 
-        // 3. Handle Photo Upload
+        // 3. Handle Photo Upload (expects 'file' field from photoUpload middleware)
         if (!req.file) {
             return res.status(400).json({ message: "Please select a file to upload." });
         }
         
+        // Upload to a specific club's gallery folder
         newPhoto = await uploadImage(req.file, `club_gallery/${clubId}`);
 
         // 4. Save the Photo record in the database

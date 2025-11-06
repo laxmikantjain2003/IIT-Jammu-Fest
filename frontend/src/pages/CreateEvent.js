@@ -63,7 +63,7 @@ function CreateEvent() {
       };
 
       // 3. Send the POST request with form data and the auth header
-      // Note: The backend route is '/api/events' (POST)
+      // Note: The backend route is POST /api/events
       await axios.post('http://localhost:5000/api/events', formData, config);
       
       // 4. Navigate to the main events page on success
@@ -72,8 +72,8 @@ function CreateEvent() {
 
     } catch (err) {
       // Handle errors (e.g., authorization failed, validation failed)
-      console.error("Create event failed:", err.response.data);
-      setError(err.response.data.message || "Failed to create event.");
+      console.error("Create event failed:", err.response?.data);
+      setError(err.response?.data?.message || "Failed to create event.");
     } finally {
       setLoading(false);
     }
@@ -81,6 +81,7 @@ function CreateEvent() {
 
   return (
     <Container component="main" maxWidth="md">
+      {/* This page uses a standard white Paper background, no background image */}
       <Paper 
         elevation={3}
         sx={{
@@ -89,12 +90,13 @@ function CreateEvent() {
           flexDirection: 'column',
           alignItems: 'center',
           padding: 4,
+          bgcolor: 'background.paper',
         }}
       >
         <Typography component="h1" variant="h5">
           Create a New Event
         </Typography>
-        <Typography variant="body2" sx={{ mt: 1, mb: 3 }}>
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 1, mb: 3 }}>
           Fill in the details below. An email notification will be sent to all verified users.
         </Typography>
         

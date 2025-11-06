@@ -55,7 +55,7 @@ function Dashboard() {
       setMyEvents(response.data);
 
     } catch (err) {
-      console.error("Error fetching dashboard data:", err);
+      console.error("Error fetching dashboard data:", err.response?.data);
       setError("Failed to load dashboard data. You may not be a coordinator.");
     } finally {
       setLoading(false);
@@ -64,12 +64,21 @@ function Dashboard() {
 
   // 1. Fetch data on component load
   useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-        setUser(JSON.parse(storedUser));
-    } else {
+    let storedUser = null;
+    try {
+      const userString = localStorage.getItem('user');
+      if (userString) {
+        storedUser = JSON.parse(userString);
+        setUser(storedUser);
+      } else {
         navigate('/login'); // Redirect if not logged in
         return;
+      }
+    } catch (e) {
+      console.error("Error parsing user, redirecting to login.", e);
+      localStorage.clear();
+      navigate('/login');
+      return;
     }
     
     fetchMyEvents();
@@ -140,6 +149,7 @@ function Dashboard() {
         sx={{
           marginTop: 8,
           padding: { xs: 2, md: 4 },
+          bgcolor: 'background.paper', // Solid white background
         }}
       >
         <Typography component="h1" variant="h4" gutterBottom align="center">

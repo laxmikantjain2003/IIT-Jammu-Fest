@@ -21,6 +21,9 @@ const eventRoutes = require('./routes/eventRoutes');
 const clubRoutes = require('./routes/clubRoutes');
 const photoRoutes = require('./routes/photoRoutes'); 
 
+// --- NEW: Import the Scheduler ---
+const { startReminderScheduler } = require('./utils/reminderScheduler');
+
 // --- Create the Server ---
 const app = express();
 const port = process.env.PORT || 5000;
@@ -61,4 +64,8 @@ app.get('/', (req, res) => {
 // --- Start the Server ---
 app.listen(port, () => {
     console.log(`Server is running on port: ${port}`);
+    
+    // --- NEW: Start the reminder scheduler ---
+    // As soon as the server starts, the scheduler will begin
+    startReminderScheduler();
 });

@@ -23,8 +23,8 @@ import {
 import DeleteIcon from '@mui/icons-material/Delete'; // Delete Icon
 
 // --- UploadPhotoForm Component ---
-// This is a helper component nested inside ClubDetail
-// It only renders if the user is the club owner.
+// Yeh ek helper component hai jo ClubDetail page ke andar nested hai
+// Yeh sirf tab dikhta hai jab user club ka owner hota hai.
 const UploadPhotoForm = ({ clubId, onUploadSuccess }) => {
     const [file, setFile] = useState(null);
     const [caption, setCaption] = useState('');
@@ -32,7 +32,7 @@ const UploadPhotoForm = ({ clubId, onUploadSuccess }) => {
     const [error, setError] = useState(null);
 
     /**
-     * @description Handles submission of the photo upload form.
+     * @description Photo upload form ko handle karta hai.
      */
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -43,23 +43,23 @@ const UploadPhotoForm = ({ clubId, onUploadSuccess }) => {
         }
         setLoading(true);
 
-        // We must use FormData to send files
+        // Files bhejne ke liye FormData zaroori hai
         const data = new FormData();
-        data.append('file', file); // 'file' is the key expected by photoUpload.js
+        data.append('file', file); // 'file' woh key hai jise photoUpload.js dhoondh raha hai
         data.append('caption', caption);
 
         try {
             const token = localStorage.getItem('token');
             const config = {
                 headers: {
-                    // 'Content-Type': 'multipart/form-data' is set automatically by browser with FormData
+                    // FormData ke liye 'Content-Type' browser khud set karta hai
                     'Authorization': `Bearer ${token}`,
                 },
             };
             
             await axios.post(`http://localhost:5000/api/photos/${clubId}`, data, config);
             
-            onUploadSuccess(); // Trigger parent component to refetch photos
+            onUploadSuccess(); // Parent component ko photos refresh karne ke liye trigger karta hai
             setFile(null);
             setCaption('');
             if(document.getElementById('photo-upload-input')) {
@@ -113,21 +113,21 @@ const UploadPhotoForm = ({ clubId, onUploadSuccess }) => {
 function ClubDetail() {
   const [club, setClub] = useState(null);
   const [user, setUser] = useState(null); 
-  const [photos, setPhotos] = useState([]); // State for the photo gallery
+  const [photos, setPhotos] = useState([]); // Photo gallery ke liye state
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const { id } = useParams(); // Get the club ID from the URL
+  const { id } = useParams(); // URL se club ID (/club/:id) lene ke liye
 
   /**
-   * @description Fetches all data for the club (details and photos).
+   * @description Club ki details aur photos, donon ko fetch karta hai.
    */
   const fetchClubData = async () => {
     try {
-        // Fetch Club Details (e.g., name, description, coordinator)
+        // Club Details (name, description, coordinator) fetch karein
         const clubResponse = await axios.get(`http://localhost:5000/api/clubs/${id}`);
         setClub(clubResponse.data);
 
-        // Fetch Photos for this club's gallery
+        // Is club ki gallery ke liye photos fetch karein
         const photoResponse = await axios.get(`http://localhost:5000/api/photos/${id}`);
         setPhotos(photoResponse.data);
 
@@ -139,19 +139,19 @@ function ClubDetail() {
     }
   };
 
-  // 1. Fetch data on component load
+  // 1. Page load hone par data fetch karein
   useEffect(() => {
-    // Check who is logged in from localStorage
+    // localStorage se check karein ki kaun logged-in hai
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
         setUser(JSON.parse(storedUser));
     }
     setLoading(true);
     fetchClubData(); 
-  }, [id]); // Re-run if the club ID in the URL changes
+  }, [id]); // Agar URL mein ID badalti hai toh dobara fetch karein
 
   /**
-   * @description Handles the deletion of a photo from the gallery.
+   * @description Gallery se photo delete karne ka function.
    */
   const handleDeletePhoto = async (photoId) => {
       if (!window.confirm("Are you sure you want to delete this photo? This cannot be undone.")) {
@@ -168,7 +168,7 @@ function ClubDetail() {
           await axios.delete(`http://localhost:5000/api/photos/delete/${photoId}`, config);
           
           alert("Photo deleted successfully!");
-          // Refresh the gallery by refetching all photos
+          // Delete karne ke baad gallery ko refresh karein
           const photoResponse = await axios.get(`http://localhost:5000/api/photos/${id}`);
           setPhotos(photoResponse.data);
 
@@ -178,7 +178,7 @@ function ClubDetail() {
       }
   };
 
-  // Check if the current user is the owner of the club
+  // Check karein ki current user is club ka owner hai ya admin
   const isClubOwner = user && club && (user.id === club.coordinatorId || user.role === 'admin');
 
   // --- Render Logic ---
@@ -200,7 +200,9 @@ function ClubDetail() {
 
   return (
     <Container component="main" maxWidth="lg">
-      <Paper elevation={3} sx={{ padding: { xs: 2, md: 4 }, mt: 4 }}>
+      {/* Paper component (jo white background deta hai) yahaan zaroori hai 
+          kyunki yeh page internal hai, auth page nahi. */}
+      <Paper elevation={3} sx={{ padding: { xs: 2, md: 4 }, mt: 4, bgcolor: 'background.paper' }}>
         
         {/* --- Header Section (Logo, Name, Coordinator) --- */}
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3, flexWrap: 'wrap' }}>
@@ -213,6 +215,7 @@ function ClubDetail() {
                         objectFit: 'contain', 
                         borderRadius: '50%',
                         mr: 3, 
+                        border: '2px solid #eee'
                     }}
                     image={club.logoUrl || "https://res.cloudinary.com/demo/image/upload/v1600000000/placeholder.png"} 
                     alt={club.name}
@@ -227,14 +230,14 @@ function ClubDetail() {
                 </Box>
             </Box>
 
-            {/* --- Edit Button (Owner Only) --- */}
+            {/* --- Edit Button (Sirf Owner ko dikhega) --- */}
             {isClubOwner && (
                 <Button 
                     component={Link} 
                     to={`/edit-club/${club.id}`} 
                     variant="contained" 
                     color="primary"
-                    sx={{ mt: { xs: 2, sm: 0 } }} // Add margin on small screens
+                    sx={{ mt: { xs: 2, sm: 0 } }} // Chhoti screen par margin
                 >
                     Edit Club Info
                 </Button>
@@ -248,7 +251,7 @@ function ClubDetail() {
           About the Club
         </Typography>
         <Typography variant="body1" paragraph sx={{ whiteSpace: 'pre-wrap' }}>
-          {/* pre-wrap preserves line breaks from the description */}
+          {/* pre-wrap description mein line breaks ko banaye rakhta hai */}
           {club.description}
         </Typography>
 
@@ -259,19 +262,24 @@ function ClubDetail() {
           Function Photo Gallery
         </Typography>
 
-        {/* --- UPLOAD FORM (Owner Only) --- */}
+        {/* --- UPLOAD FORM (Sirf Owner ko dikhega) --- */}
         {isClubOwner && (
             <UploadPhotoForm clubId={club.id} onUploadSuccess={fetchClubData} />
         )}
         
-        {/* --- GALLERY DISPLAY (Public) --- */}
+        {/* --- GALLERY DISPLAY (Sabko dikhega) --- */}
         {photos.length === 0 ? (
             <Alert severity="info" sx={{ mt: 3 }}>
                 No photos have been uploaded for this club yet.
             </Alert>
         ) : (
             <Box sx={{ mt: 3 }}>
-                <ImageList variant="masonry" cols={5} gap={8}>
+                {/* Responsive ImageList */}
+                <ImageList 
+                  variant="masonry" 
+                  cols={{ xs: 1, sm: 2, md: 3, lg: 4 }} 
+                  gap={8}
+                >
                     {photos.map((item) => (
                         <ImageListItem key={item.id} sx={{ '&:hover .delete-button-bar': { opacity: 1 } }}>
                             <img
@@ -281,14 +289,14 @@ function ClubDetail() {
                                 loading="lazy"
                                 style={{ borderRadius: '8px', border: '1px solid #eee' }}
                             />
-                            {/* --- Delete Button (Owner Only) --- */}
+                            {/* --- Delete Button (Sirf Owner ko dikhega) --- */}
                             {isClubOwner && (
                                 <ImageListItemBar
-                                    className="delete-button-bar" // For hover effect
+                                    className="delete-button-bar" // Hover effect ke liye
                                     sx={{ 
                                         backgroundColor: 'rgba(0, 0, 0, 0.4)',
                                         transition: 'opacity 0.3s',
-                                        opacity: 0, // Hidden by default
+                                        opacity: 0, // Default mein hidden
                                     }}
                                     position="top"
                                     actionIcon={
@@ -301,7 +309,7 @@ function ClubDetail() {
                                     }
                                 />
                             )}
-                            {/* --- Caption (Public) --- */}
+                            {/* --- Caption (Sabko dikhega) --- */}
                             <ImageListItemBar
                                 title={item.caption}
                                 subtitle={`Uploaded: ${new Date(item.createdAt).toLocaleDateString()}`}

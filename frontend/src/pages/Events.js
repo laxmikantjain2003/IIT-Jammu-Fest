@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
+// --- Link import karein ---
+import { useNavigate, Link } from 'react-router-dom';
 
 // --- Import MUI components ---
 import {
@@ -14,6 +15,8 @@ import {
   CircularProgress,
   Alert,
   Box,
+  Paper, // Paper ko import karein
+  CardActionArea, // <-- NEW: Clickable area ke liye
 } from '@mui/material';
 
 function Events() {
@@ -21,25 +24,16 @@ function Events() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [user, setUser] = useState(null); 
-  
-  // --- NEW STATE: To store the IDs of events the user is registered for ---
-  const [registeredEventIds, setRegisteredEventIds] = useState(new Set()); // Use a Set for fast lookups
-
+  const [registeredEventIds, setRegisteredEventIds] = useState(new Set()); 
   const navigate = useNavigate();
 
-  // 1. Fetch all events AND user's registrations on component load
+  // (useEffect hook... unchanged)
   useEffect(() => {
     let storedUser = null;
     try {
       const userString = localStorage.getItem('user');
-      if (userString) {
-        storedUser = JSON.parse(userString);
-        setUser(storedUser);
-      }
-    } catch (e) {
-      console.error("Failed to parse user from localStorage", e);
-      localStorage.clear(); // Clear corrupted data
-    }
+      if (userString) { storedUser = JSON.parse(userString); setUser(storedUser); }
+    } catch (e) { console.error("Failed to parse user", e); localStorage.clear(); }
 
     const fetchEvents = async () => {
       try {
@@ -50,167 +44,151 @@ function Events() {
         setError("Failed to load events. Please try again later.");
       }
     };
-
     const fetchMyRegistrations = async () => {
-      if (storedUser) { // Only fetch if user is logged in
+      if (storedUser) { 
         try {
           const token = localStorage.getItem('token');
           const config = { headers: { 'Authorization': `Bearer ${token}` } };
           const response = await axios.get('http://localhost:5000/api/users/me/my-registrations', config);
-          
-          // Create a Set of event IDs for fast checking (e.g., [1, 5, 12])
           setRegisteredEventIds(new Set(response.data));
-
-        } catch (err) {
-          console.error("Error fetching my registrations:", err);
-          // Don't block loading if this fails, just won't show "Registered"
-        }
+        } catch (err) { console.error("Error fetching my registrations:", err); }
       }
     };
-
-    // Run all fetches in parallel
     const loadData = async () => {
         setLoading(true);
-        await Promise.all([
-            fetchEvents(),
-            fetchMyRegistrations()
-        ]);
+        await Promise.all([ fetchEvents(), fetchMyRegistrations() ]);
         setLoading(false);
     };
-
     loadData();
-  }, []); // The empty array [] means this effect runs only once
+  }, []); 
 
-  /**
-   * @description Handles registration and updates the button state.
-   */
-  const handleRegister = async (eventId) => {
+  // (handleRegister function... UPDATED to stop propagation)
+  const handleRegister = async (eventId, e) => {
+    // --- NEW: Stop click from bubbling to the Card's Link ---
+    e.stopPropagation(); // Click ko card tak jaane se rokta hai
+    e.preventDefault(); // Default link behaviour ko rokta hai
+
     try {
       const token = localStorage.getItem('token');
-      if (!token) {
-        navigate('/login');
-        return;
-      }
+      if (!token) { navigate('/login'); return; }
       const config = { headers: { 'Authorization': `Bearer ${token}` } };
-
       const response = await axios.post(
         `http://localhost:5000/api/events/${eventId}/register`, 
         {}, 
         config
       );
-
-      // --- NEW: Update state locally ---
-      // Add this eventId to our Set to instantly change the button to "Registered"
       setRegisteredEventIds(prevIds => new Set(prevIds).add(eventId));
-
-      alert(response.data.message); // Show "Registered successfully! A confirmation email has been sent."
-      
+      alert(response.data.message); 
     } catch (err) {
       console.error("Registration error:", err.response?.data);
       alert(err.response?.data?.message || "Registration failed.");
     }
   };
 
-
-  // --- Render Logic ---
+  // --- (Render Logic - unchanged) ---
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', mt: 10 }}>
-        <CircularProgress />
+        <CircularProgress sx={{ color: 'white' }} />
       </Box>
     );
   }
-
-  if (error) {
-    return <Alert severity="error">{error}</Alert>;
-  }
+  if (error) { return <Alert severity="error">{error}</Alert>; }
 
   return (
     <Container>
-      <Typography variant="h4" component="h1" gutterBottom align="center" sx={{ mb: 4, color: 'white' }}>
+      <Typography 
+        variant="h4" 
+        component="h1" 
+        gutterBottom 
+        align="center" 
+        sx={{ mb: 4, color: 'white', fontWeight: 'bold' }}
+      >
         Upcoming Events
       </Typography>
       
       {events.length === 0 ? (
-        <Alert severity="info" sx={{ mt: 5 }}>
-          There are no upcoming events scheduled at this time.
-        </Alert>
+        <Paper sx={{p: 3, textAlign: 'center', backgroundColor: 'rgba(255, 255, 255, 0.9)'}}>
+          <Alert severity="info" sx={{justifyContent: 'center'}}>
+            There are no upcoming events scheduled at this time.
+          </Alert>
+        </Paper>
       ) : (
         <Grid container spacing={3}>
           {events.map(event => {
             
-            // --- UPDATED UI LOGIC ---
-            // 1. Check if user is the coordinator
             const isCoordinatorOfThisEvent = user && (user.id === event.coordinatorId);
-            
-            // 2. Check if user is allowed to register
             const canRegister = user && (user.role === 'student' || !isCoordinatorOfThisEvent);
-            
-            // 3. Check if user is *already* registered
             const isRegistered = registeredEventIds.has(event.id);
 
             return (
               <Grid item xs={12} md={6} lg={4} key={event.id}>
-                <Card sx={{ 
-                  height: '100%', 
-                  display: 'flex', 
-                  flexDirection: 'column',
-                
-                  backgroundColor: 'rgba(255, 255, 255, 0.25)', 
-                  backdropFilter: 'blur(25px)', 
-                  border: '1px solid rgba(255, 255, 255, 0.2)', 
-                  color: 'white' 
-                  
-                }}>
-                  <CardContent sx={{ flexGrow: 1 }}>
-                    {/* ... (Unchanged Typography for title, club, when, where) ... */}
-                    <Typography variant="h5" component="h2" gutterBottom>
-                      {event.title}
-                    </Typography>
-                    <Typography color="text.secondary" sx={{ mb: 1.5, color: 'black' }}>
-                      <strong>Club:</strong> {event.clubName}
-                    </Typography>
-                    <Typography variant="body2" sx={{ mb: 1 }}>
-                      <strong>When:</strong> {new Date(event.eventDate).toLocaleString()}
-                    </Typography>
-                    <Typography variant="body2" sx={{ mb: 1 }}>
-                      <strong>Where:</strong> {event.venue}
-                    </Typography>
-                    <Typography variant="body2" paragraph>
-                      {event.description}
-                    </Typography>
-                    <Typography variant="caption" color="black" fontSize={15}>
-                      Posted by: {event.User ? event.User.name : 'Admin'}
-                    </Typography>
-                  </CardContent>
+                {/* Card ab solid white background use karega */}
+                <Card 
+                  sx={{ 
+                    height: '100%', 
+                    display: 'flex', 
+                    flexDirection: 'column',
+                    bgcolor: 'background.paper', // Solid white
+                    transition: '0.3s',
+                    '&:hover': { transform: 'translateY(-5px)', boxShadow: 6 }
+                  }}
+                >
+                  {/* --- CARDACTIONAREA WRAPPER --- */}
+                  {/* Yeh CardContent ko clickable banata hai */}
+                  <CardActionArea 
+                    component={Link} 
+                    to={`/events/${event.id}`} // <-- NEW: Link to detail page
+                    sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column' }}
+                  >
+                    <CardContent sx={{ flexGrow: 1, width: '100%' }}>
+                      <Typography variant="h5" component="h2" gutterBottom>
+                        {event.title}
+                      </Typography>
+                      <Typography color="text.secondary" sx={{ mb: 1.5 }}>
+                        <strong>Club:</strong> {event.clubName}
+                      </Typography>
+                      <Typography variant="body2" sx={{ mb: 1 }}>
+                        <strong>When:</strong> {new Date(event.eventDate).toLocaleString()}
+                      </Typography>
+                      <Typography variant="body2" sx={{ mb: 1 }}>
+                        <strong>Where:</strong> {event.venue}
+                      </Typography>
+                      <Typography variant="body2" paragraph sx={{
+                          // Description ko 2 lines tak seemit rakha
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical',
+                      }}>
+                        {event.description}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Posted by: {event.User ? event.User.name : 'Admin'}
+                      </Typography>
+                    </CardContent>
+                  </CardActionArea>
 
-                  {/* --- UPDATED BUTTON RENDER CONDITION --- */}
+                  {/* CardActions link ke bahar hai taaki register button alag se click ho sake */}
                   <CardActions>
-                    {/* Only show button if user is logged in */}
                     {user && (
                       <>
                         {isRegistered ? (
-                          // 1. If already registered
-                          <Button 
-                            size="small" 
-                            variant="outlined" 
-                            disabled 
-                          >
+                          <Button size="small" variant="outlined" disabled>
                             Registered
                           </Button>
                         ) : (
-                          // 2. If not registered, check if they *can* register
                           canRegister && (
                             <Button 
                               size="small" 
                               variant="contained" 
-                              onClick={() => handleRegister(event.id)}
+                              onClick={(e) => handleRegister(event.id, e)} // 'e' pass karna zaroori hai
                             >
                               Register for this Event
                             </Button>
                           )
                         )}
-                        {/* 3. If they are the coordinator of this event (and not registered) */}
                         {isCoordinatorOfThisEvent && !isRegistered && (
                             <Button size="small" variant="text" disabled>
                                 (Your Event)
