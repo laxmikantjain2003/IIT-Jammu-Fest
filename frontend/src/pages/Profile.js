@@ -283,7 +283,7 @@ function Profile() {
                     </Button>
                 )}
                 {picFile && <Typography variant="caption" display="block" sx={{ mt: 1 }}>{picFile.name}</Typography>}
-            </Box>
+            </Box> 
 
             {/* Profile Picture Error Display */}
             {picError && (
